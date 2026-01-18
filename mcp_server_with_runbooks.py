@@ -1386,26 +1386,32 @@ sse = SseServerTransport("/messages")
 
 # 2. Define the SSE endpoint
 async def handle_sse(request):
-    async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
-        # Note: server.create_initialization_options() might need to be awaited
-        # or called based on your specific MCP version.
-        await server.run(
-            streams[0],
-            streams[1],
-            server.create_initialization_options()
-        )
+    try:
+        async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
+            # Note: server.create_initialization_options() might need to be awaited
+            # or called based on your specific MCP version.
+            await server.run(
+                streams[0],
+                streams[1],
+                server.create_initialization_options()
+            )
+    except Exception as e:
+        print(f"SSE connection error: {str(e)}")
+        # Prevent middleware from trying to send a second response
+        pass
     return Response()
 
-# 3. Define the POST messages endpoint
-async def handle_messages(request):
-    await sse.handle_post_message(request.scope, request.receive, request._send)
-    return Response()
+# # 3. Define the POST messages endpoint
+# async def handle_messages(request):
+#     await sse.handle_post_message(request.scope, request.receive, request._send)
+#     return Response()
 
 # 4. Create the App
 app = Starlette(
     routes=[
         Route("/sse", endpoint=handle_sse),
-        Route("/messages", endpoint=handle_messages, methods=["POST"]),
+        # Route("/messages", endpoint=handle_messages, methods=["POST"]),
+        Mount("/messages", app=sse.handle_post_message), # HIGHLIGHT: Use Mount here
     ]
 )
 
