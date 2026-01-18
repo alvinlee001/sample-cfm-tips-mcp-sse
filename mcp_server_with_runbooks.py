@@ -1375,6 +1375,7 @@ async def main():
 
 
 from mcp.server.sse import SseServerTransport
+from starlette.responses import Response
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.responses import JSONResponse
@@ -1393,10 +1394,12 @@ async def handle_sse(request):
             streams[1],
             server.create_initialization_options()
         )
+    return Response()
 
 # 3. Define the POST messages endpoint
 async def handle_messages(request):
     await sse.handle_post_message(request.scope, request.receive, request._send)
+    return Response()
 
 # 4. Create the App
 app = Starlette(
