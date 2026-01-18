@@ -1360,12 +1360,52 @@ async def main():
     finally:
         logger.info("CFM Tips MCP Server shutting down")
 
+# if __name__ == "__main__":
+#     try:
+#         logger.info("CFM Tips MCP Server starting up")
+#         asyncio.run(main())
+#     except KeyboardInterrupt:
+#         logger.info("CFM Tips MCP Server stopped by user")
+#     except Exception as e:
+#         logger.error(f"Fatal error in MCP server: {str(e)}")
+#         sys.exit(1)
+
+
+
+
+
+from mcp.server.sse import SseServerTransport
+from starlette.applications import Starlette
+from starlette.routing import Route, Mount
+from starlette.responses import JSONResponse
+import uvicorn
+
+# 1. Initialize the transport
+sse = SseServerTransport("/messages")
+
+# 2. Define the SSE endpoint
+async def handle_sse(request):
+    async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
+        # Note: server.create_initialization_options() might need to be awaited
+        # or called based on your specific MCP version.
+        await server.run(
+            streams[0],
+            streams[1],
+            server.create_initialization_options()
+        )
+
+# 3. Define the POST messages endpoint
+async def handle_messages(request):
+    await sse.handle_post_message(request.scope, request.receive, request._send)
+
+# 4. Create the App
+app = Starlette(
+    routes=[
+        Route("/sse", endpoint=handle_sse),
+        Route("/messages", endpoint=handle_messages, methods=["POST"]),
+    ]
+)
+
 if __name__ == "__main__":
-    try:
-        logger.info("CFM Tips MCP Server starting up")
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("CFM Tips MCP Server stopped by user")
-    except Exception as e:
-        logger.error(f"Fatal error in MCP server: {str(e)}")
-        sys.exit(1)
+    print("Starting MCP SSE Server on http://127.0.0.1:8000/sse")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
